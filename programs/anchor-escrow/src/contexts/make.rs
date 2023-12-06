@@ -26,10 +26,8 @@ pub struct Make<'info> {
     #[account(
         init,
         payer = maker,
-        seeds=[b"vault", escrow.key().as_ref()],
-        bump,
-        token::mint = mint_a,
-        token::authority = escrow
+        associated_token::mint = mint_a,
+        associated_token::authority = escrow
     )]
     pub vault: Account<'info, TokenAccount>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -44,8 +42,7 @@ impl<'info> Make<'info> {
             mint_a: self.mint_a.key(),
             mint_b: self.mint_b.key(),
             receive,
-            bump: bumps.escrow,
-            vault_bump: bumps.vault
+            bump: bumps.escrow
         });
         Ok(())
     }

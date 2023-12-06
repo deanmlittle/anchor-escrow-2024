@@ -24,12 +24,10 @@ pub struct Refund<'info> {
     escrow: Account<'info, Escrow>,
     #[account(
         mut,
-        seeds=[b"vault", escrow.key().as_ref()],
-        bump = escrow.vault_bump,
-        token::mint = mint_a,
-        token::authority = escrow
+        associated_token::mint = mint_a,
+        associated_token::authority = escrow
     )]
-    vault: Account<'info, TokenAccount>,
+    pub vault: Account<'info, TokenAccount>,
     associated_token_program: Program<'info, AssociatedToken>,
     token_program: Program<'info, Token>,
     system_program: Program<'info, System>

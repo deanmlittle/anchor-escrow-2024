@@ -38,13 +38,7 @@ describe("anchor-escrow", () => {
     program.programId
   )[0];
 
-  const vault = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("vault"),
-      escrow.toBuffer()
-    ], 
-    program.programId
-  )[0];
+  const vault = getAssociatedTokenAddressSync(mintA.publicKey, escrow, true);
 
   const confirm = async (signature: string): Promise<string> => {
     const block = await connection.getLatestBlockhash();
@@ -162,7 +156,7 @@ describe("anchor-escrow", () => {
     .then(log);
   });
 
-  xit("Take", async () => {
+  it("Take", async () => {
     // Add your test here.
     const tx = await program.methods.take()
     .accounts({
@@ -187,7 +181,7 @@ describe("anchor-escrow", () => {
     .then(log);
   });
 
-  it("Refund", async () => {
+  xit("Refund", async () => {
     // Add your test here.
     const tx = await program.methods.refund()
     .accounts({
