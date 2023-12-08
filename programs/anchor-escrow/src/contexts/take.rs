@@ -65,7 +65,7 @@ impl<'info> Take<'info> {
         transfer(cpi_ctx, self.escrow.receive)
     }
 
-    pub fn withdraw(&mut self) -> Result<()> {
+    pub fn withdraw_and_close_vault(&mut self) -> Result<()> {
         let signer_seeds: [&[&[u8]];1] = [
             &[
                 b"escrow", 
@@ -75,43 +75,32 @@ impl<'info> Take<'info> {
             ]
         ];
 
-        let transfer_accounts = Transfer {
+        let accounts = Transfer {
             from: self.vault.to_account_info(),
             to: self.taker_ata_a.to_account_info(),
             authority: self.escrow.to_account_info()
         };
 
-        let cpi_ctx = CpiContext::new_with_signer(
+        let ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(), 
-            transfer_accounts,
+            accounts,
             &signer_seeds
         );
 
-        transfer(cpi_ctx, self.vault.amount)
-    }
+        transfer(ctx, self.vault.amount)?;
 
-    pub fn close_vault(&mut self) -> Result<()> {
-        let signer_seeds: [&[&[u8]];1] = [
-            &[
-                b"escrow", 
-                self.maker.to_account_info().key.as_ref(), 
-                &self.escrow.seed.to_le_bytes()[..],
-                &[self.escrow.bump]
-            ]
-        ];
-
-        let close_accounts = CloseAccount {
+        let accounts = CloseAccount {
             account: self.vault.to_account_info(),
             destination: self.taker.to_account_info(),
             authority: self.escrow.to_account_info()
         };
 
-        let cpi_ctx = CpiContext::new_with_signer(
+        let ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(), 
-            close_accounts,
+            accounts,
             &signer_seeds
         );
 
-        close_account(cpi_ctx)
+        close_account(ctx)
     }
 }
