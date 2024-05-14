@@ -11,6 +11,7 @@ import {
 import {
   MINT_SIZE,
   TOKEN_2022_PROGRAM_ID,
+  // TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
   createInitializeMint2Instruction,
   createMintToInstruction,
@@ -29,6 +30,7 @@ describe("anchor-escrow", () => {
   const program = anchor.workspace.AnchorEscrow as Program<AnchorEscrow>;
 
   const tokenProgram = TOKEN_2022_PROGRAM_ID;
+  // const tokenProgram = TOKEN_PROGRAM_ID;
 
   const confirm = async (signature: string): Promise<string> => {
     const block = await connection.getLatestBlockhash();
