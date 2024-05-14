@@ -9,9 +9,8 @@ import {
   Transaction,
 } from "@solana/web3.js";
 import {
-  ASSOCIATED_TOKEN_PROGRAM_ID,
   MINT_SIZE,
-  TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   createAssociatedTokenAccountIdempotentInstruction,
   createInitializeMint2Instruction,
   createMintToInstruction,
@@ -28,6 +27,8 @@ describe("anchor-escrow", () => {
   const connection = provider.connection;
 
   const program = anchor.workspace.AnchorEscrow as Program<AnchorEscrow>;
+
+  const tokenProgram = TOKEN_2022_PROGRAM_ID;
 
   const confirm = async (signature: string): Promise<string> => {
     const block = await connection.getLatestBlockhash();
@@ -54,16 +55,17 @@ describe("anchor-escrow", () => {
   const [makerAtaA, makerAtaB, takerAtaA, takerAtaB] = [maker, taker]
     .map((a) =>
       [mintA, mintB].map((m) =>
-        getAssociatedTokenAddressSync(m.publicKey, a.publicKey)
+        getAssociatedTokenAddressSync(m.publicKey, a.publicKey, false, tokenProgram)
       )
     )
     .flat();
 
   const escrow = PublicKey.findProgramAddressSync(
-    [Buffer.from("escrow"), maker.publicKey.toBuffer(), seed.toBuffer("le", 8)],
+    [Buffer.from("escrow"), maker.publicKey.toBuffer(), seed.toArrayLike(Buffer, "le", 8)],
     program.programId
   )[0];
-  const vault = getAssociatedTokenAddressSync(mintA.publicKey, escrow, true);
+
+  const vault = getAssociatedTokenAddressSync(mintA.publicKey, escrow, true, tokenProgram);
 
   // Accounts
   const accounts = {
@@ -77,39 +79,37 @@ describe("anchor-escrow", () => {
     takerAtaB,
     escrow,
     vault,
-    associatedTokenprogram: ASSOCIATED_TOKEN_PROGRAM_ID,
-    tokenProgram: TOKEN_PROGRAM_ID,
-    systemProgram: SystemProgram.programId 
+    tokenProgram,
   }
 
   it("Airdrop and create mints", async () => {
     let lamports = await getMinimumBalanceForRentExemptMint(connection);
     let tx = new Transaction();
     tx.instructions = [
-      ...[maker, taker].map((k) =>
+      ...[maker, taker].map((account) =>
         SystemProgram.transfer({
           fromPubkey: provider.publicKey,
-          toPubkey: k.publicKey,
+          toPubkey: account.publicKey,
           lamports: 10 * LAMPORTS_PER_SOL,
         })
       ),
-      ...[mintA, mintB].map((m) =>
+      ...[mintA, mintB].map((mint) =>
         SystemProgram.createAccount({
           fromPubkey: provider.publicKey,
-          newAccountPubkey: m.publicKey,
+          newAccountPubkey: mint.publicKey,
           lamports,
           space: MINT_SIZE,
-          programId: TOKEN_PROGRAM_ID,
+          programId: tokenProgram,
         })
       ),
       ...[
-        [mintA.publicKey, maker.publicKey, makerAtaA],
-        [mintB.publicKey, taker.publicKey, takerAtaB],
+        { mint: mintA.publicKey, authority: maker.publicKey, ata: makerAtaA },
+        { mint: mintB.publicKey, authority: taker.publicKey, ata: takerAtaB },
       ]
       .flatMap((x) => [
-        createInitializeMint2Instruction(x[0], 6, x[1], null),
-        createAssociatedTokenAccountIdempotentInstruction(provider.publicKey, x[2], x[1], x[0]),
-        createMintToInstruction(x[0], x[2], x[1], 1e9),
+        createInitializeMint2Instruction(x.mint, 6, x.authority, null, tokenProgram),
+        createAssociatedTokenAccountIdempotentInstruction(provider.publicKey, x.ata, x.authority, x.mint, tokenProgram),
+        createMintToInstruction(x.mint, x.ata, x.authority, 1e9, undefined, tokenProgram),
       ])
     ];
 
@@ -119,7 +119,7 @@ describe("anchor-escrow", () => {
   it("Make", async () => {
     await program.methods
       .make(seed, new BN(1e6), new BN(1e6))
-      .accounts({...accounts})
+      .accounts({ ...accounts })
       .signers([maker])
       .rpc()
       .then(confirm)
@@ -129,7 +129,7 @@ describe("anchor-escrow", () => {
   xit("Refund", async () => {
     await program.methods
       .refund()
-      .accounts({...accounts})
+      .accounts({ ...accounts })
       .signers([maker])
       .rpc()
       .then(confirm)
@@ -137,12 +137,17 @@ describe("anchor-escrow", () => {
   });
 
   it("Take", async () => {
+    try {
     await program.methods
       .take()
-      .accounts({ ...accounts })
+      .accounts({  ...accounts })
       .signers([taker])
       .rpc()
       .then(confirm)
       .then(log);
+    } catch(e) {
+      console.log(e);
+      throw(e)
+    }
   });
 });
