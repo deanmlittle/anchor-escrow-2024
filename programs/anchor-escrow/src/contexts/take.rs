@@ -40,7 +40,7 @@ pub struct Take<'info> {
     pub maker_ata_b: Box<InterfaceAccount<'info, TokenAccount>>,
     #[account(
         mut,
-        close = taker,
+        close = maker,
         has_one = maker,
         has_one = mint_a,
         has_one = mint_b,
